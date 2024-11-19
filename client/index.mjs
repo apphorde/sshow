@@ -2,21 +2,47 @@ function getTerminal() {
   const term = new Terminal({ convertEol: true });
   term.open(document.getElementById("terminal"));
 
-  if (typeof FitAddon !== "undefined") {
-    const fitAddon = new FitAddon.FitAddon();
-    term.loadAddon(fitAddon);
-    window.addEventListener("resize", () => fitAddon.fit());
-  }
+  const fitAddon = new FitAddon.FitAddon();
+  term.loadAddon(fitAddon);
+  window.addEventListener("resize", () => fitAddon.fit());
 
   return term;
 }
 
 let currentSocket;
+const clientBuffer = [];
 
-const terminal = getTerminal();
-terminal.onData((data) => {
+function debounce(fn, time = 50) {
+  let timer;
+
+  return (...args) => {
+    clearTimeout(timer);
+    timer = setTimeout(() => fn(...args), time);
+  };
+}
+
+function send() {
+  const data = clientBuffer.join("");
   currentSocket?.send(JSON.stringify({ type: "input", data }));
+  clientBuffer.length = 0;
+}
+
+const sendDelayed = debounce(send);
+const terminal = getTerminal();
+
+terminal.onData((c) => {
+  clientBuffer.push(c);
+
+  if (c === "\r" || clientBuffer.length > 5) {
+    return send();
+  }
+
+  sendDelayed();
 });
+
+terminal.onResize(({ cols, rows }) => {
+  currentSocket?.send(JSON.stringify({ type: "resize", data: { cols, rows } }));
+})
 
 function onStatusChange(online) {
   const c = document.getElementById("status").classList;
@@ -24,18 +50,15 @@ function onStatusChange(online) {
   c.toggle("bg-red-400", !online);
 
   if (!online) {
-    terminal.clear();
-    terminal.write("Connection lost, resetting...");
     setTimeout(connect, 500);
   }
 }
 
 function onMessage(message) {
   const event = JSON.parse(message);
+
   switch (event.type) {
-    case "ack":
     case "stdout":
-    case "stderr":
       const chunk = event.data;
 
       if (typeof chunk === "string") {
@@ -54,15 +77,13 @@ function onMessage(message) {
 }
 
 async function connect() {
-  const socket = new WebSocket("ws://" + location.host + "/socket");
+  const socket = new WebSocket(
+    location.protocol.replace("http", "ws") + "//" + location.host + "/socket"
+  );
 
   socket.addEventListener("message", (e) => onMessage(e.data));
   socket.addEventListener("close", () => onStatusChange(false));
-  socket.addEventListener("open", () => {
-    onStatusChange(true);
-    terminal.clear();
-    // terminal.write("> ");
-  });
+  socket.addEventListener("open", () => onStatusChange(true));
 
   currentSocket = socket;
 }

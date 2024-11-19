@@ -9,6 +9,7 @@ const port = Number(process.env.PORT || 8000);
 const mime = {
   mjs: "text/javascript",
   css: "text/css",
+  html: "text/html",
 };
 
 const server = createServer(function (request, response) {
@@ -45,10 +46,7 @@ function notFound(response) {
 }
 
 const wss = new WebSocketServer({ server, path: "/socket" });
-const _s = (d) => {
-  console.log(d);
-  return JSON.stringify(d);
-};
+const _ = JSON.stringify;
 
 wss.on("connection", function connection(ws) {
   const shell = pty.spawn("bash", [], {
@@ -68,15 +66,20 @@ wss.on("connection", function connection(ws) {
     switch (event.type) {
       case "input":
         shell.write(event.data);
-        ws.send(_s({ type: "ack", data: event.data }));
         break;
+
+      case "resize": {
+        const { cols, rows } = event.data;
+        shell.resize(cols, rows);
+        break;
+      }
 
       case "close":
         onClose(ws);
     }
   });
 
-  shell.onData((data) => ws.send(_s({ type: "stdout", data })));
+  shell.onData((data) => ws.send(_({ type: "stdout", data })));
 
   ws.on("close", () => onClose(ws));
 });
