@@ -1,8 +1,8 @@
-import { spawn } from "child_process";
 import { createReadStream, existsSync } from "fs";
 import { createServer } from "http";
 import { join } from "path";
 import { WebSocketServer } from "ws";
+import * as pty from "node-pty";
 
 const cwd = process.cwd();
 const port = Number(process.env.PORT || 8000);
@@ -46,15 +46,20 @@ function notFound(response) {
 
 const wss = new WebSocketServer({ server, path: "/socket" });
 const _s = (d) => {
-  // console.log(d);
+  console.log(d);
   return JSON.stringify(d);
 };
 
 wss.on("connection", function connection(ws) {
-  const shell = spawn(process.env.SHELL || "/bin/sh");
-  ws.shell = shell;
+  const shell = pty.spawn("bash", [], {
+    name: "xterm-color",
+    cols: 80,
+    rows: 30,
+    cwd: process.env.HOME || process.cwd(),
+    env: process.env,
+  });
 
-  ws.buffer = [];
+  ws.shell = shell;
   ws.on("error", console.error);
   ws.on("message", function message(data) {
     const json = data.toString("utf8");
@@ -62,8 +67,7 @@ wss.on("connection", function connection(ws) {
 
     switch (event.type) {
       case "input":
-        const saneInput = event.data.replace(/[\r]+?/g, "\n");
-        shell.stdin.write(saneInput);
+        shell.write(event.data);
         ws.send(_s({ type: "ack", data: event.data }));
         break;
 
@@ -72,8 +76,7 @@ wss.on("connection", function connection(ws) {
     }
   });
 
-  shell.stdout.on("data", (data) => ws.send(_s({ type: "stdout", data })));
-  shell.stderr.on("data", (data) => ws.send(_s({ type: "stderr", data })));
+  shell.onData((data) => ws.send(_s({ type: "stdout", data })));
 
   ws.on("close", () => onClose(ws));
 });
@@ -89,5 +92,5 @@ function onClose(ws) {
 }
 
 server.listen(port, "0.0.0.0", () => {
-  console.log("Server started at :" + port);
+  console.log("Server started at http://localhost:" + port);
 });

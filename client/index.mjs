@@ -50,10 +50,6 @@ function onMessage(message) {
         terminal.write(uint8);
       }
       break;
-
-    case "end":
-      terminal.write("> ");
-      break;
   }
 }
 
@@ -65,7 +61,7 @@ async function connect() {
   socket.addEventListener("open", () => {
     onStatusChange(true);
     terminal.clear();
-    terminal.write("> ");
+    // terminal.write("> ");
   });
 
   currentSocket = socket;
