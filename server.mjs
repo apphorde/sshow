@@ -45,18 +45,26 @@ function notFound(response) {
 }
 
 const wss = new WebSocketServer({ server, path: "/socket" });
-const _s = JSON.stringify;
+const _s = (d) => {
+  // console.log(d);
+  return JSON.stringify(d);
+};
 
 wss.on("connection", function connection(ws) {
   const shell = spawn(process.env.SHELL || "/bin/sh");
   ws.shell = shell;
 
+  ws.buffer = [];
   ws.on("error", console.error);
   ws.on("message", function message(data) {
-    const event = JSON.parse(data);
+    const json = data.toString("utf8");
+    const event = JSON.parse(json);
+
     switch (event.type) {
       case "input":
-        shell.stdin.write(data);
+        const saneInput = event.data.replace(/[\r]+?/g, "\n");
+        shell.stdin.write(saneInput);
+        ws.send(_s({ type: "ack", data: event.data }));
         break;
 
       case "close":
