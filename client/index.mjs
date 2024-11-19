@@ -25,6 +25,7 @@ function sendInput() {
 }
 
 let currentSocket;
+let reconnect = true;
 const sendDelayed = debounce(sendInput);
 const clientBuffer = [];
 const { terminal, fitAddon } = getTerminal();
@@ -46,7 +47,6 @@ function onSend(data) {
 }
 
 terminal.onData(onClientWrite);
-
 terminal.onResize(({ cols, rows }) =>
   onSend({ type: "resize", data: { cols, rows } })
 );
@@ -56,18 +56,21 @@ function onStatusChange(online) {
   c.toggle("bg-green-400", online);
   c.toggle("bg-red-400", !online);
 
-  if (!online) {
+  if (!online && reconnect) {
     setTimeout(connect, 500);
   }
 }
 
 function onClose() {
+  reconnect = false;
+
   if (currentSocket) {
     onSend({ type: "close" });
     currentSocket.close();
   }
 
   currentSocket = null;
+  terminal.close();
 }
 
 function onMessage(message) {
@@ -83,10 +86,6 @@ function onMessage(message) {
 
       if (typeof chunk === "string") {
         terminal.write(chunk);
-
-        if (chunk === "exit\r\n") {
-          onClose();
-        }
         break;
       }
 
@@ -114,4 +113,7 @@ async function connect() {
 }
 
 connect();
-document.getElementById("status").onclick = connect;
+document.getElementById("status").onclick = () => {
+  reconnect = true;
+  connect();
+};
