@@ -6,6 +6,10 @@ import { WebSocketServer } from "ws";
 
 const cwd = process.cwd();
 const port = Number(process.env.PORT || 8000);
+const mime = {
+  mjs: "text/javascript",
+  css: "text/css",
+};
 
 const server = createServer(function (request, response) {
   const url = new URL(request.url, "http://localhost");
@@ -22,6 +26,11 @@ const server = createServer(function (request, response) {
     const file = join(cwd, pathname.replace("/ui/", "client/"));
 
     if (existsSync(file)) {
+      const ext = file.split(".").pop();
+      if (ext in mime) {
+        response.setHeader("content-type", mime[ext]);
+      }
+
       createReadStream(file).pipe(response);
     } else {
       notFound(response);
