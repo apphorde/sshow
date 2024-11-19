@@ -70,7 +70,7 @@ function onClose() {
   }
 
   currentSocket = null;
-  terminal.close();
+  terminal.write("\nConnection closed.");
 }
 
 function onMessage(message) {
@@ -115,5 +115,6 @@ async function connect() {
 connect();
 document.getElementById("status").onclick = () => {
   reconnect = true;
+  terminal.clear();
   connect();
 };
