@@ -80,18 +80,17 @@ wss.on("connection", function connection(ws) {
   });
 
   shell.onData((data) => ws.send(_({ type: "stdout", data })));
+  shell.onExit(() => ws.send(_({ type: "close" })));
 
   ws.on("close", () => onClose(ws));
 });
 
 function onClose(ws) {
-  if (!ws.shell.killed) {
-    ws.shell.kill();
-  }
-
   if (ws.readyState !== ws.CLOSED) {
     ws.close();
   }
+
+  ws.shell.kill();
 }
 
 server.listen(port, "0.0.0.0", () => {

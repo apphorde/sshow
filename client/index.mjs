@@ -1,16 +1,13 @@
 function getTerminal() {
-  const term = new Terminal({ convertEol: true });
-  term.open(document.getElementById("terminal"));
+  const terminal = new Terminal({ convertEol: true });
+  terminal.open(document.getElementById("terminal"));
 
   const fitAddon = new FitAddon.FitAddon();
-  term.loadAddon(fitAddon);
+  terminal.loadAddon(fitAddon);
   window.addEventListener("resize", () => fitAddon.fit());
 
-  return term;
+  return { terminal, fitAddon };
 }
-
-let currentSocket;
-const clientBuffer = [];
 
 function debounce(fn, time = 50) {
   let timer;
@@ -21,28 +18,38 @@ function debounce(fn, time = 50) {
   };
 }
 
-function send() {
+function sendInput() {
   const data = clientBuffer.join("");
-  currentSocket?.send(JSON.stringify({ type: "input", data }));
+  onSend({ type: "input", data });
   clientBuffer.length = 0;
 }
 
-const sendDelayed = debounce(send);
-const terminal = getTerminal();
+let currentSocket;
+const sendDelayed = debounce(sendInput);
+const clientBuffer = [];
+const { terminal, fitAddon } = getTerminal();
 
-terminal.onData((c) => {
+function onClientWrite(c) {
   clientBuffer.push(c);
 
   if (c === "\r" || clientBuffer.length > 5) {
-    return send();
+    return sendInput();
   }
 
   sendDelayed();
-});
+}
 
-terminal.onResize(({ cols, rows }) => {
-  currentSocket?.send(JSON.stringify({ type: "resize", data: { cols, rows } }));
-})
+function onSend(data) {
+  if (currentSocket && currentSocket.OPEN === currentSocket.readyState) {
+    currentSocket.send(JSON.stringify(data));
+  }
+}
+
+terminal.onData(onClientWrite);
+
+terminal.onResize(({ cols, rows }) =>
+  onSend({ type: "resize", data: { cols, rows } })
+);
 
 function onStatusChange(online) {
   const c = document.getElementById("status").classList;
@@ -54,15 +61,32 @@ function onStatusChange(online) {
   }
 }
 
+function onClose() {
+  if (currentSocket) {
+    onSend({ type: "close" });
+    currentSocket.close();
+  }
+
+  currentSocket = null;
+}
+
 function onMessage(message) {
   const event = JSON.parse(message);
 
   switch (event.type) {
+    case "close":
+      onClose();
+      break;
+
     case "stdout":
       const chunk = event.data;
 
       if (typeof chunk === "string") {
         terminal.write(chunk);
+
+        if (chunk === "exit\r\n") {
+          onClose();
+        }
         break;
       }
 
@@ -86,6 +110,8 @@ async function connect() {
   socket.addEventListener("open", () => onStatusChange(true));
 
   currentSocket = socket;
+  setTimeout(() => fitAddon.fit(), 1000);
 }
 
 connect();
+document.getElementById("status").onclick = connect;
