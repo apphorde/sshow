@@ -3,6 +3,7 @@ import { createServer } from "http";
 import { join } from "path";
 import { WebSocketServer } from "ws";
 import * as pty from "node-pty";
+import {spawn} from 'child_process'
 
 const cwd = process.cwd();
 const port = Number(process.env.PORT || 8000);
@@ -93,6 +94,11 @@ function onClose(ws) {
   ws.shell.kill();
 }
 
-server.listen(port, "0.0.0.0", () => {
-  console.log("Server started at http://localhost:" + port);
-});
+if (process.argv.includes('--daemon')) {
+  spawn('node', [process.argv[1]], { detached: true, stdio: "inherit" }).unref();
+}
+else {
+  server.listen(port, "0.0.0.0", () => {
+    console.log("Server started at http://localhost:" + port);
+  });
+}

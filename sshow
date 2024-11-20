@@ -1,0 +1,66 @@
+#!/usr/bin/env bash
+
+SOURCE=${BASH_SOURCE[0]}
+
+while [ -L "$SOURCE" ]; do # resolve $SOURCE until the file is no longer a symlink
+  DIR=$( cd -P "$( dirname "$SOURCE" )" >/dev/null 2>&1 && pwd )
+  SOURCE=$(readlink "$SOURCE")
+  [[ $SOURCE != /* ]] && SOURCE=$DIR/$SOURCE # if $SOURCE was a relative symlink, we need to resolve it relative to the path where the symlink file was located
+done
+
+DIR=$( cd -P "$( dirname "$SOURCE" )" >/dev/null 2>&1 && pwd )
+
+stdout=$DIR/sshow.log
+stderr=$DIR/error.log
+
+getpid(){
+  ps aux | grep -E 'node.*server.mjs' | grep -v grep | head -n1 | awk '{print $2}'
+}
+
+stop(){
+  pid=$(getpid)
+  kill $pid
+}
+
+start(){
+  pid=$(getpid)
+  if [[ -z "$pid" ]]; then
+    node $DIR/server.mjs
+  fi
+}
+
+daemon(){
+  node $DIR/server.mjs --daemon  1>$stdout 2>$stderr
+}
+
+case "${1}" in
+  install)
+    cat $DIR/service.template | sed s#DIR#$DIR# > /etc/systemd/system/sshow.service
+    systemctl enable sshow
+    systemctl daemon-reload
+    systemctl start sshow
+    ;;
+  start)
+    start
+    ;;
+  stop)
+    stop
+    ;;
+  restart)
+    stop
+    start
+    ;;
+  status)
+    pid=$(getpid)
+    if [[ -z "$pid" ]]; then
+      echo Not running
+      [[ -f $stderr ]] && tail $stderr
+    else
+      echo Running with PID $pid
+      [[ -f $stdout ]] && tail $stdout
+    fi
+    ;;
+  *)
+    echo "Usage: sshow start/stop/restart/status"
+    ;;
+esac

@@ -1,0 +1,13 @@
+[Unit]
+Description=SSHoW
+After=network.target
+
+[Service]
+WorkingDirectory=DIR
+ExecStart=DIR/sshow start
+ExecStop=DIR/sshow stop
+Restart=always
+RestartSec=10
+
+[Install]
+WantedBy=multi-user.target
