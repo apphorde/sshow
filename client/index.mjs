@@ -1,3 +1,12 @@
+const defaults = {
+  debounceTime: 50,
+};
+
+const config = {
+  ...defaults,
+  ...(window.sshow || {}),
+};
+
 function getTerminal() {
   const terminal = new Terminal({ convertEol: true });
   terminal.open(document.getElementById("terminal"));
@@ -9,7 +18,7 @@ function getTerminal() {
   return { terminal, fitAddon };
 }
 
-function debounce(fn, time = 50) {
+function debounce(fn, time = config.debouceTime) {
   let timer;
 
   return (...args) => {
@@ -58,6 +67,10 @@ function onStatusChange(online) {
 
   if (!online && reconnect) {
     setTimeout(connect, 500);
+  }
+
+  if (online) {
+    fitAddon.fit();
   }
 }
 
