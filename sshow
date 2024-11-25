@@ -29,8 +29,8 @@ start(){
   fi
 }
 
-daemon(){
-  node $DIR/server.mjs --daemon  1>$stdout 2>$stderr
+daemon_start(){
+  node $DIR/server.mjs --daemon 1>$stdout 2>$stderr
 }
 
 case "${1}" in
@@ -39,6 +39,9 @@ case "${1}" in
     systemctl enable sshow
     systemctl daemon-reload
     systemctl start sshow
+    ;;
+  daemon-start)
+    daemon_start
     ;;
   start)
     start
