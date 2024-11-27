@@ -43,7 +43,20 @@ function onHttpRequest(request, response) {
   if (pathname === "/stats") {
     response.end(
       _({
-        clients: [...wss.clients],
+        server: {
+          connections: server._connections,
+        },
+        clients: [...wss.clients].map((c) => ({
+          state: c._readyState,
+          shell: {
+            pid: c.shell._pid,
+            cols: c.shell._cols,
+            rows: c.shell._rows,
+            pty: c.shell._pty,
+            entrypoint: c.shell._file,
+            name: c.shell._name,
+          },
+        })),
       })
     );
     return;
