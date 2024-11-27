@@ -43,7 +43,6 @@ function onHttpRequest(request, response) {
   if (pathname === "/stats") {
     response.end(
       _({
-        address: wss.address(),
         clients: [...wss.clients],
       })
     );
