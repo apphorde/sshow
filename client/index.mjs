@@ -67,7 +67,7 @@ function onStatusChange(online) {
   c.toggle("bg-red-400", !online);
 
   if (!online && reconnect) {
-    setTimeout(connect, 500);
+    setTimeout(connect, 5000);
   }
 
   if (online) {
@@ -116,7 +116,7 @@ function onMessage(message) {
 async function connect() {
   const url = new URL(location.href);
   const socket = new WebSocket(
-    location.protocol.replace("http", "ws") + "//" + location.host + "/socket/" + url.searchParams.get('name')
+    location.protocol.replace("http", "ws") + "//" + location.host + "/socket?name=" + (url.searchParams.get('name') || '')
   );
 
   socket.addEventListener("message", (e) => onMessage(e.data));

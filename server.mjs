@@ -43,16 +43,18 @@ function onHttpRequest(request, response) {
   }
 
   if (pathname === "/stats") {
+    const clients = [...wss.clients];
     response.end(
       _({
         server: {
           connections: server._connections,
+          clients: clients.length,
         },
-        clients: [...wss.clients].map((c) => ({
+        clients: clients.map((c) => ({
           name: c.shell._name,
           state: c._readyState,
-          closed: ws.readyState === c.CLOSED,
-          open: ws.readyState === c.OPEN,
+          closed: c.readyState === c.CLOSED,
+          open: c.readyState === c.OPEN,
           shell: {
             pid: c.shell.pid,
             cols: c.shell.cols,
@@ -98,9 +100,9 @@ async function onUpgrade(request, socket, head) {
 /** @param {import('ws').WebSocket} ws */
 function onConnection(ws, request) {
   const url = new URL(request.url, "http://local");
-  const name = url.searchParams.get("name") || defaultName;
+  const name = /^[a-zA-Z]{8,32}$/.test(url.searchParams.get("name")) ? url.searchParams.get("name") : defaultName;
 
-  console.log("Connecting " + request.url);
+  console.log("Connecting to session " + name);
 
   const shell =
     name !== defaultName && sessions.has(name)
