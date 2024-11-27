@@ -52,9 +52,8 @@ function onHttpRequest(request, response) {
             sessions: sessions.size,
           },
           clients: clients.map((c) => ({
-            name: c.shell._name,
+            name: c.name,
             state: c._readyState,
-            closed: c.readyState === c.CLOSED,
             open: c.readyState === c.OPEN,
             shell: {
               pid: c.shell.pid,
