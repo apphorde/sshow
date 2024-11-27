@@ -15,7 +15,10 @@ if (process.argv.includes("--daemon")) {
 
 const cwd = process.cwd();
 const port = Number(process.env.PORT || 8000);
+const killTimeout = Number(process.env.KILL_TIMEOUT || 10_000);
+const defaultName = "xterm-color";
 const _ = JSON.stringify;
+const sessions = new Map();
 const mime = {
   mjs: "text/javascript",
   css: "text/css",
@@ -25,7 +28,6 @@ const mime = {
 const server = createServer();
 const wss = new WebSocketServer({
   noServer: true,
-  path: "/socket",
   clientTracking: true,
 });
 
@@ -47,14 +49,16 @@ function onHttpRequest(request, response) {
           connections: server._connections,
         },
         clients: [...wss.clients].map((c) => ({
+          name: c.shell._name,
           state: c._readyState,
+          closed: ws.readyState === c.CLOSED,
+          open: ws.readyState === c.OPEN,
           shell: {
-            pid: c.shell._pid,
-            cols: c.shell._cols,
-            rows: c.shell._rows,
+            pid: c.shell.pid,
+            cols: c.shell.cols,
+            rows: c.shell.rows,
             pty: c.shell._pty,
             entrypoint: c.shell._file,
-            name: c.shell._name,
           },
         })),
       })
@@ -93,17 +97,24 @@ async function onUpgrade(request, socket, head) {
 
 /** @param {import('ws').WebSocket} ws */
 function onConnection(ws, request) {
+  const url = new URL(request.url, "http://local");
+  const name = url.searchParams.get("name") || defaultName;
+
   console.log("Connecting " + request.url);
 
-  const shell = pty.spawn("bash", [], {
-    name: "xterm-color",
-    cols: 80,
-    rows: 30,
-    cwd: process.env.HOME || process.cwd(),
-    env: process.env,
-  });
+  const shell =
+    name !== defaultName && sessions.has(name)
+      ? sessions.get(name)
+      : pty.spawn("bash", [], {
+          name,
+          cols: 80,
+          rows: 30,
+          cwd: process.env.HOME || process.cwd(),
+          env: process.env,
+        });
 
   ws.shell = shell;
+  clearTimeout(ws.shell.killTimer);
 
   ws.on("error", console.error);
   ws.on("message", function message(data) {
@@ -137,7 +148,12 @@ function onClose(ws) {
     ws.close();
   }
 
-  ws.shell.kill();
+  ws.shell.killTimer = setTimeout(() => killShell(ws.shell), killTimeout);
+}
+
+function killShell(shell) {
+  sessions.delete(shell._name);
+  shell.kill();
 }
 
 server.on("request", onHttpRequest);

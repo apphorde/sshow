@@ -114,8 +114,9 @@ function onMessage(message) {
 }
 
 async function connect() {
+  const url = new URL(location.href);
   const socket = new WebSocket(
-    location.protocol.replace("http", "ws") + "//" + location.host + "/socket"
+    location.protocol.replace("http", "ws") + "//" + location.host + "/socket/" + url.searchParams.get('name')
   );
 
   socket.addEventListener("message", (e) => onMessage(e.data));
