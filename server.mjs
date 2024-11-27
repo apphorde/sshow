@@ -44,26 +44,30 @@ function onHttpRequest(request, response) {
   if (pathname === "/stats") {
     const clients = [...wss.clients];
     response.end(
-      _({
-        server: {
-          connections: server._connections,
-          clients: clients.length,
-          sessions: sessions.size,
-        },
-        clients: clients.map((c) => ({
-          name: c.shell._name,
-          state: c._readyState,
-          closed: c.readyState === c.CLOSED,
-          open: c.readyState === c.OPEN,
-          shell: {
-            pid: c.shell.pid,
-            cols: c.shell.cols,
-            rows: c.shell.rows,
-            pty: c.shell._pty,
-            entrypoint: c.shell._file,
+      JSON.stringify(
+        {
+          server: {
+            connections: server._connections,
+            clients: clients.length,
+            sessions: sessions.size,
           },
-        })),
-      })
+          clients: clients.map((c) => ({
+            name: c.shell._name,
+            state: c._readyState,
+            closed: c.readyState === c.CLOSED,
+            open: c.readyState === c.OPEN,
+            shell: {
+              pid: c.shell.pid,
+              cols: c.shell.cols,
+              rows: c.shell.rows,
+              pty: c.shell._pty,
+              entrypoint: c.shell._file,
+            },
+          })),
+        },
+        null,
+        2
+      )
     );
     return;
   }
@@ -106,7 +110,7 @@ function onConnection(ws, request) {
 
   const shell =
     sessions.get(name) ??
-    pty.spawn("bash", [], {
+    pty.spawn(url.searchParams.get("shell") || "bash", [], {
       name: "xterm-color",
       cols: 80,
       rows: 30,
