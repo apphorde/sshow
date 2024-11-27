@@ -3,17 +3,33 @@ import { createServer } from "http";
 import { join } from "path";
 import { WebSocketServer } from "ws";
 import * as pty from "node-pty";
-import {spawn} from 'child_process'
+import { spawn } from "child_process";
+
+if (process.argv.includes("--daemon")) {
+  spawn("node", [process.argv[1]], {
+    detached: true,
+    stdio: "inherit",
+  }).unref();
+  process.exit(0);
+}
 
 const cwd = process.cwd();
 const port = Number(process.env.PORT || 8000);
+const _ = JSON.stringify;
 const mime = {
   mjs: "text/javascript",
   css: "text/css",
   html: "text/html",
 };
 
-const server = createServer(function (request, response) {
+const server = createServer();
+const wss = new WebSocketServer({
+  noServer: true,
+  path: "/socket",
+  clientTracking: true,
+});
+
+function onHttpRequest(request, response) {
   const url = new URL(request.url, "http://localhost");
   const { pathname } = url;
 
@@ -21,6 +37,16 @@ const server = createServer(function (request, response) {
     response.setHeader("Location", "/ui/index.html");
     response.writeHead(302);
     response.end();
+    return;
+  }
+
+  if (pathname === "/stats") {
+    response.end(
+      _({
+        address: wss.address(),
+        clients: [...wss.clients],
+      })
+    );
     return;
   }
 
@@ -35,21 +61,28 @@ const server = createServer(function (request, response) {
 
       createReadStream(file).pipe(response);
     } else {
-      notFound(response);
+      response.writeHead(404).end("Not found");
     }
 
     return;
   }
-});
-
-function notFound(response) {
-  response.writeHead(404).end("Not found");
 }
 
-const wss = new WebSocketServer({ server, path: "/socket" });
-const _ = JSON.stringify;
+async function onUpgrade(request, socket, head) {
+  try {
+    // todo auth
+  } catch (e) {
+    socket.destroy();
+    return;
+  }
 
-wss.on("connection", function connection(ws) {
+  wss.handleUpgrade(request, socket, head, onConnection);
+}
+
+/** @param {import('ws').WebSocket} ws */
+function onConnection(ws, request) {
+  console.log("Connecting " + request.url);
+
   const shell = pty.spawn("bash", [], {
     name: "xterm-color",
     cols: 80,
@@ -59,6 +92,7 @@ wss.on("connection", function connection(ws) {
   });
 
   ws.shell = shell;
+
   ws.on("error", console.error);
   ws.on("message", function message(data) {
     const json = data.toString("utf8");
@@ -77,14 +111,14 @@ wss.on("connection", function connection(ws) {
 
       case "close":
         onClose(ws);
+        break;
     }
   });
 
   shell.onData((data) => ws.send(_({ type: "stdout", data })));
   shell.onExit(() => ws.send(_({ type: "close" })));
-
   ws.on("close", () => onClose(ws));
-});
+}
 
 function onClose(ws) {
   if (ws.readyState !== ws.CLOSED) {
@@ -94,11 +128,10 @@ function onClose(ws) {
   ws.shell.kill();
 }
 
-if (process.argv.includes('--daemon')) {
-  spawn('node', [process.argv[1]], { detached: true, stdio: "inherit" }).unref();
-}
-else {
-  server.listen(port, "0.0.0.0", () => {
-    console.log("Server started at http://localhost:" + port);
-  });
-}
+server.on("request", onHttpRequest);
+server.on("upgrade", onUpgrade);
+wss.on("connection", onConnection);
+
+server.listen(port, "0.0.0.0", () => {
+  console.log("Server started at http://localhost:" + port);
+});

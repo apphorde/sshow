@@ -1,4 +1,5 @@
 const defaults = {
+  maxBuffer: 5,
   debounceTime: 50,
 };
 
@@ -42,7 +43,7 @@ const { terminal, fitAddon } = getTerminal();
 function onClientWrite(c) {
   clientBuffer.push(c);
 
-  if (c === "\r" || clientBuffer.length > 5) {
+  if (c === "\r" || clientBuffer.length > config.maxBuffer) {
     return sendInput();
   }
 
