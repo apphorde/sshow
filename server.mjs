@@ -16,7 +16,6 @@ if (process.argv.includes("--daemon")) {
 const cwd = process.cwd();
 const port = Number(process.env.PORT || 8000);
 const killTimeout = Number(process.env.KILL_TIMEOUT || 10_000);
-const defaultName = "xterm-color";
 const _ = JSON.stringify;
 const sessions = new Map();
 const mime = {
@@ -49,6 +48,7 @@ function onHttpRequest(request, response) {
         server: {
           connections: server._connections,
           clients: clients.length,
+          sessions: sessions.size,
         },
         clients: clients.map((c) => ({
           name: c.shell._name,
@@ -100,23 +100,28 @@ async function onUpgrade(request, socket, head) {
 /** @param {import('ws').WebSocket} ws */
 function onConnection(ws, request) {
   const url = new URL(request.url, "http://local");
-  const name = /^[a-zA-Z]{8,32}$/.test(url.searchParams.get("name")) ? url.searchParams.get("name") : defaultName;
-
-  console.log("Connecting to session " + name);
+  const name = /^[a-zA-Z]{8,32}$/.test(url.searchParams.get("name"))
+    ? url.searchParams.get("name")
+    : "";
 
   const shell =
-    name !== defaultName && sessions.has(name)
-      ? sessions.get(name)
-      : pty.spawn("bash", [], {
-          name,
-          cols: 80,
-          rows: 30,
-          cwd: process.env.HOME || process.cwd(),
-          env: process.env,
-        });
+    sessions.get(name) ??
+    pty.spawn("bash", [], {
+      name: "xterm-color",
+      cols: 80,
+      rows: 30,
+      cwd: process.env.HOME || process.cwd(),
+      env: process.env,
+    });
 
   ws.shell = shell;
   clearTimeout(ws.shell.killTimer);
+
+  if (name) {
+    shell.sessionName = name;
+    console.log("Connecting to session " + name);
+    sessions.set(name, shell);
+  }
 
   ws.on("error", console.error);
   ws.on("message", function message(data) {
@@ -140,8 +145,13 @@ function onConnection(ws, request) {
     }
   });
 
-  shell.onData((data) => ws.send(_({ type: "stdout", data })));
-  shell.onExit(() => ws.send(_({ type: "close" })));
+  shell.onData(
+    (data) =>
+      ws.readyState !== ws.CLOSED && ws.send(_({ type: "stdout", data }))
+  );
+  shell.onExit(
+    () => ws.readyState !== ws.CLOSED && ws.send(_({ type: "close" }))
+  );
   ws.on("close", () => onClose(ws));
 }
 
