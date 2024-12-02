@@ -109,7 +109,7 @@ function onConnection(ws, request) {
 
   const shell =
     sessions.get(name) ??
-    pty.spawn(url.searchParams.get("shell") || "bash", [], {
+    pty.spawn("login", [], {
       name: "xterm-color",
       cols: 80,
       rows: 30,
