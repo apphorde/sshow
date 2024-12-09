@@ -33,6 +33,17 @@ daemon_start(){
   node $DIR/server.mjs --daemon 1>$stdout 2>$stderr
 }
 
+get_status() {
+    pid=$(getpid)
+    if [[ -z "$pid" ]]; then
+      echo Not running
+      [[ -f $stderr ]] && tail $stderr
+    else
+      echo Running with PID $pid
+      [[ -f $stdout ]] && tail $stdout
+    fi
+}
+
 case "${1}" in
   install)
     cat $DIR/service.template | sed s#DIR#$DIR# > /etc/systemd/system/sshow.service
@@ -54,16 +65,10 @@ case "${1}" in
     start
     ;;
   status)
-    pid=$(getpid)
-    if [[ -z "$pid" ]]; then
-      echo Not running
-      [[ -f $stderr ]] && tail $stderr
-    else
-      echo Running with PID $pid
-      [[ -f $stdout ]] && tail $stdout
-    fi
+    get_status
     ;;
   *)
-    echo "Usage: sshow start/stop/restart/status"
+    echo "Usage: sshow <start/daemon-start/stop/restart/status/install>"
+    status
     ;;
 esac
