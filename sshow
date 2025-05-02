@@ -14,7 +14,7 @@ stdout=$DIR/sshow.log
 stderr=$DIR/error.log
 
 getpid(){
-  ps aux | grep -E 'node.*server.mjs' | grep -v grep | head -n1 | awk '{print $2}'
+  ps aux | grep -E 'node.*sshow.mjs' | grep -v grep | head -n1 | awk '{print $2}'
 }
 
 stop(){
@@ -25,12 +25,12 @@ stop(){
 start(){
   pid=$(getpid)
   if [[ -z "$pid" ]]; then
-    node $DIR/server.mjs
+    node $DIR/sshow.mjs
   fi
 }
 
 daemon_start(){
-  node $DIR/server.mjs --daemon 1>$stdout 2>$stderr
+  node $DIR/sshow.mjs --daemon 1>$stdout 2>$stderr
 }
 
 get_status() {
