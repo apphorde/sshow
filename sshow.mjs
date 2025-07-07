@@ -111,7 +111,7 @@ function onConnection(ws, request) {
 
   if (!shell || shell.closed) {
     console.log("Creating new shell for session " + name);
-    pty.spawn("login", [], {
+    shell = pty.spawn("login", [], {
       name: "xterm-color",
       cols: 80,
       rows: 30,
