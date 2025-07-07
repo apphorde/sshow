@@ -105,7 +105,7 @@ function onConnection(ws, request) {
   const url = new URL(request.url, "http://local");
   const name = /^[a-zA-Z]{8,32}$/.test(url.searchParams.get("name"))
     ? url.searchParams.get("name")
-    : "";
+    : "default";
 
   const shell =
     sessions.get(name) ??
@@ -153,7 +153,10 @@ function onConnection(ws, request) {
       ws.readyState !== ws.CLOSED && ws.send(_({ type: "stdout", data }))
   );
   shell.onExit(
-    () => ws.readyState !== ws.CLOSED && ws.send(_({ type: "close" }))
+    () => {
+      ws.readyState !== ws.CLOSED && ws.send(_({ type: "close" }));
+      killShell(shell);
+    }
   );
   ws.on("close", () => onClose(ws));
 }
