@@ -131,6 +131,11 @@ function onConnection(ws, request) {
     const json = data.toString("utf8");
     const event = JSON.parse(json);
 
+    if (shell.closed) {
+      onClose(ws);
+      return;
+    }
+
     switch (event.type) {
       case "input":
         shell.write(event.data);
@@ -152,12 +157,10 @@ function onConnection(ws, request) {
     (data) =>
       ws.readyState !== ws.CLOSED && ws.send(_({ type: "stdout", data }))
   );
-  shell.onExit(
-    () => {
-      ws.readyState !== ws.CLOSED && ws.send(_({ type: "close" }));
-      killShell(shell);
-    }
-  );
+  shell.onExit(() => {
+    ws.readyState !== ws.CLOSED && ws.send(_({ type: "close" }));
+    killShell(shell);
+  });
   ws.on("close", () => onClose(ws));
 }
 
@@ -172,6 +175,7 @@ function onClose(ws) {
 function killShell(shell) {
   sessions.delete(shell._name);
   shell.kill();
+  shell.closed = true;
 }
 
 server.on("request", onHttpRequest);
