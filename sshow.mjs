@@ -107,8 +107,10 @@ function onConnection(ws, request) {
     ? url.searchParams.get("name")
     : "default";
 
-  const shell =
-    sessions.get(name) ??
+  let shell = sessions.get(name);
+
+  if (!shell || shell.closed) {
+    console.log("Creating new shell for session " + name);
     pty.spawn("login", [], {
       name: "xterm-color",
       cols: 80,
@@ -116,6 +118,7 @@ function onConnection(ws, request) {
       cwd: process.env.HOME || process.cwd(),
       env: process.env,
     });
+  }
 
   ws.shell = shell;
   clearTimeout(ws.shell.killTimer);
