@@ -30,7 +30,10 @@ start(){
 }
 
 daemon_start(){
-  node $DIR/sshow.mjs --daemon 1>$stdout 2>$stderr
+  pid=$(getpid)
+  if [[ -z "$pid" ]]; then
+    node $DIR/sshow.mjs --daemon 1>$stdout 2>$stderr
+  fi
 }
 
 get_status() {
@@ -69,6 +72,6 @@ case "${1}" in
     ;;
   *)
     echo "Usage: sshow <start/daemon-start/stop/restart/status/install>"
-    status
+    get_status
     ;;
 esac
