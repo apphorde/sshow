@@ -103,7 +103,7 @@ async function onUpgrade(request, socket, head) {
 /** @param {import('ws').WebSocket} ws */
 function onConnection(ws, request) {
   const url = new URL(request.url, "http://local");
-  const name = /^[a-zA-Z]{8,32}$/.test(url.searchParams.get("name"))
+  const name = /^[a-zA-Z]{3,32}$/.test(url.searchParams.get("name"))
     ? url.searchParams.get("name")
     : "default";
 
