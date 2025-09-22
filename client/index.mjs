@@ -155,7 +155,7 @@ export default function () {
   });
 
   function onReconnect() {
-    reconnect = true;
+    reconnect.value = true;
     terminal.clear();
     connect();
   }
