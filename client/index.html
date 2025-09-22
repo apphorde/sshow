@@ -15,19 +15,80 @@
       crossorigin="anonymous"
       referrerpolicy="no-referrer"
     />
+    <script type="importmap">
+      {
+        "imports": {
+          "@li3/": "https://at-li3.static.apphor.de/",
+          "@sodium/": "https://at-sodium.static.apphor.de/",
+          "@lucide/": "https://at-lucide.static.apphor.de/"
+        }
+      }
+    </script>
     <script src="https://unpkg.com/@xterm/xterm@5.5.0/lib/xterm.js"></script>
     <script src="https://unpkg.com/@xterm/addon-fit@0.10.0/lib/addon-fit.js"></script>
+    <script type="module">
+      import "@li3/web";
+    </script>
   </head>
   <body>
-    <div
-      id="status"
-      class="absolute z-10 rounded-full w-3 h-3 top-0 right-0 m-5 bg-green-400"
-    ></div>
-    <div
-      class="w-screen h-screen bg-gray-700 text-white flex flex-col items-center justify-center p-4"
-    >
-      <div id="terminal" class="w-full h-full overflow-hidden rounded-lg p-2 bg-black shadow-md"></div>
-    </div>
-    <script type="module" src="/ui/index.mjs"></script>
+    <template app>
+      <div
+        ref="workspace"
+        class="w-screen h-screen bg-gray-700 text-white p-4 flex flex-col items-center justify-between overflow-auto"
+        on-dblclick="addTerminal()"
+      ></div>
+      <script setup>
+        import { templateRef, onInit } from "@li3/web";
+
+        export default function () {
+          const ws = templateRef("workspace");
+
+          function addTerminal() {
+            const term = document.createElement("app-terminal");
+            term.setAttribute(
+              "name",
+              "terminal-" + (ws.value.children.length + 1)
+            );
+            ws.value.append(term);
+          }
+
+          onInit(addTerminal);
+
+          return { addTerminal };
+        }
+      </script>
+    </template>
+    <template component="app-terminal">
+      <div class="flex flex-col w-full min-h-full">
+        <div class="flex w-full h-8 items-center">
+          <div class="w-full text-sm">{{ name }}</div>
+          <button
+            ref="status"
+            class="rounded-full w-3 h-3 top-0 right-0 mr-2"
+            class-bg-green-400="online"
+            class-bg-orange-400="!online"
+            on-click="onReconnect()"
+          ></button>
+
+          <button
+            ref="close"
+            class="rounded-full w-3 h-3 top-0 right-0 bg-red-400"
+            on-click="onClose()"
+          ></button>
+        </div>
+        <div class="flex flex-col items-center justify-center h-full">
+          <div
+            ref="terminal"
+            class="w-full h-full overflow-hidden rounded-lg p-2 bg-black"
+          ></div>
+        </div>
+      </div>
+      <script setup src="/ui/index.mjs"></script>
+      <style>
+        app-terminal {
+          display: contents;
+        }
+      </style>
+    </template>
   </body>
 </html>
