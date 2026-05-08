@@ -98,7 +98,7 @@ export default function () {
     }
 
     currentSocket = null;
-    terminal.write("\nConnection closed.");
+    terminal.write("\n\n");
   }
 
   function onMessage(message) {
@@ -160,5 +160,5 @@ export default function () {
     connect();
   }
 
-  return { onReconnect, online, name };
+  return { onReconnect, onClose, online, name };
 }
